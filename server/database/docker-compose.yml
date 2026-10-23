@@ -1,23 +1,42 @@
-version: '3.9'
+name: fullstack-capstone
 
 services:
-  # Mongodb service
-  mongo_db:
-    container_name: db_container
-    image: mongo:latest
-    ports:
-      - 27017:27017
-    restart: always
+  mongo:
+    image: mongo:7
     volumes:
       - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
 
-  # Node api service
   api:
-    image: nodeapp
+    build: .
+    environment:
+      MONGO_URL: mongodb://mongo:27017/fullstack_capstone
+      BACKEND_WRITE_TOKEN: ${BACKEND_WRITE_TOKEN:?Set a private backend write token}
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+  sentiment:
+    build: ../djangoapp/microservices
+
+  web:
+    build: ..
+    environment:
+      BACKEND_URL: http://api:3030
+      SENTIMENT_URL: http://sentiment:5050
+      BACKEND_WRITE_TOKEN: ${BACKEND_WRITE_TOKEN:?Set a private backend write token}
+      DJANGO_DEBUG: '1'
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?Set a private Django secret key}
+      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1
     ports:
-      - 3030:3030
-    depends_on: 
-      - mongo_db
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      - api
+      - sentiment
 
 volumes:
   mongo_data: {}
