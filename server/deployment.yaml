@@ -1,0 +1,94 @@
+# Template only. Verify the learner's SN identity before selecting a namespace.
+# Render SN_REGISTRY_NAMESPACE explicitly; never apply this template unchanged.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fullstack-capstone-mongo
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: fullstack-capstone-mongo}
+  template:
+    metadata:
+      labels: {app: fullstack-capstone-mongo}
+    spec:
+      containers:
+        - name: mongo
+          image: mongo:7
+          ports: [{containerPort: 27017}]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fullstack-capstone-mongo
+spec:
+  selector: {app: fullstack-capstone-mongo}
+  ports: [{port: 27017, targetPort: 27017}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fullstack-capstone-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: fullstack-capstone-api}
+  template:
+    metadata:
+      labels: {app: fullstack-capstone-api}
+    spec:
+      containers:
+        - name: api
+          image: us.icr.io/${SN_REGISTRY_NAMESPACE}/fullstack-capstone-api:20261023
+          ports: [{containerPort: 3030}]
+          env:
+            - name: MONGO_URL
+              value: mongodb://fullstack-capstone-mongo:27017/fullstack_capstone_20261023
+            - name: BACKEND_WRITE_TOKEN
+              valueFrom:
+                secretKeyRef: {name: fullstack-capstone-private, key: backend-write-token}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fullstack-capstone-api
+spec:
+  selector: {app: fullstack-capstone-api}
+  ports: [{port: 3030, targetPort: 3030}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fullstack-capstone-web
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: fullstack-capstone-web}
+  template:
+    metadata:
+      labels: {app: fullstack-capstone-web}
+    spec:
+      containers:
+        - name: web
+          image: us.icr.io/${SN_REGISTRY_NAMESPACE}/fullstack-capstone-web:20261023
+          ports: [{containerPort: 8000}]
+          env:
+            - name: DJANGO_DEBUG
+              value: '0'
+            - name: DJANGO_SECRET_KEY
+              valueFrom:
+                secretKeyRef: {name: fullstack-capstone-private, key: django-secret-key}
+            - name: BACKEND_WRITE_TOKEN
+              valueFrom:
+                secretKeyRef: {name: fullstack-capstone-private, key: backend-write-token}
+            - name: BACKEND_URL
+              value: http://fullstack-capstone-api:3030
+            - name: SENTIMENT_URL
+              valueFrom:
+                configMapKeyRef: {name: fullstack-capstone-runtime, key: sentiment-url}
+            - name: DJANGO_ALLOWED_HOSTS
+              valueFrom:
+                configMapKeyRef: {name: fullstack-capstone-runtime, key: allowed-hosts}
+            - name: CSRF_TRUSTED_ORIGINS
+              valueFrom:
+                configMapKeyRef: {name: fullstack-capstone-runtime, key: csrf-origins}
