@@ -1,74 +1,8 @@
-import React, { useState } from 'react';
-
-import "./Login.css";
+import React,{useState} from 'react';
 import Header from '../Header/Header';
-
-const Login = ({ onClose }) => {
-
-  const [userName, setUserName] = useState("");
-  const [password, setPassword] = useState("");
-  const [open,setOpen] = useState(true)
-
-  let login_url = window.location.origin+"/djangoapp/login";
-
-  const login = async (e) => {
-    e.preventDefault();
-
-    const res = await fetch(login_url, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-            "userName": userName,
-            "password": password
-        }),
-    });
-    
-    const json = await res.json();
-    if (json.status != null && json.status === "Authenticated") {
-        sessionStorage.setItem('username', json.userName);
-        setOpen(false);        
-    }
-    else {
-      alert("The user could not be authenticated.")
-    }
-};
-
-  if (!open) {
-    window.location.href = "/";
-  };
-  
-
-  return (
-    <div>
-      <Header/>
-    <div onClick={onClose}>
-      <div
-        onClick={(e) => {
-          e.stopPropagation();
-        }}
-        className='modalContainer'
-      >
-          <form className="login_panel" style={{}} onSubmit={login}>
-              <div>
-              <span className="input_field">Username </span>
-              <input type="text"  name="username" placeholder="Username" className="input_field" onChange={(e) => setUserName(e.target.value)}/>
-              </div>
-              <div>
-              <span className="input_field">Password </span>
-              <input name="psw" type="password"  placeholder="Password" className="input_field" onChange={(e) => setPassword(e.target.value)}/>            
-              </div>
-              <div>
-              <input className="action_button" type="submit" value="Login"/>
-              <input className="action_button" type="button" value="Cancel" onClick={()=>setOpen(false)}/>
-              </div>
-              <a className="loginlink" href="/register">Register Now</a>
-          </form>
-      </div>
-    </div>
-    </div>
-  );
-};
-
-export default Login;
+import {post} from '../../api';
+export default function Login() {
+  const [userName,setName]=useState(''),[password,setPassword]=useState(''),[error,setError]=useState(''),[busy,setBusy]=useState(false);
+  async function submit(e){e.preventDefault();setBusy(true);setError('');try {await post('/djangoapp/login',{userName,password});window.location.assign('/');}catch(e){setError(e.message);setBusy(false);}}
+  return <><Header/><main id='main' className='auth-layout'><div><p className='eyebrow'>YOUR DEALERSHIP COMMUNITY</p><h1>Welcome back.</h1><p>Sign in to share your experience and help another driver choose with confidence.</p></div><form className='form-card' onSubmit={submit}><h2>Log in</h2><label>Username<input required autoComplete='username' value={userName} onChange={e=>setName(e.target.value)}/></label><label>Password<input required type='password' autoComplete='current-password' value={password} onChange={e=>setPassword(e.target.value)}/></label>{error&&<p role='alert' className='error'>{error}</p>}<button disabled={busy}>{busy?'Signing in…':'Log in'}</button><p>New here? <a href='/register/'>Create an account</a></p></form></main></>;
+}
