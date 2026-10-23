@@ -1,96 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import "./Dealers.css";
-import "../assets/style.css";
+import React,{useState,useEffect} from 'react';
 import Header from '../Header/Header';
-import review_icon from "../assets/reviewicon.png"
-
-const Dealers = () => {
-  const [dealersList, setDealersList] = useState([]);
-  // let [state, setState] = useState("")
-  let [states, setStates] = useState([])
-
-  // let root_url = window.location.origin
-  let dealer_url ="/djangoapp/get_dealers";
-  
-  let dealer_url_by_state = "/djangoapp/get_dealers/";
- 
-  const filterDealers = async (state) => {
-    dealer_url_by_state = dealer_url_by_state+state;
-    const res = await fetch(dealer_url_by_state, {
-      method: "GET"
-    });
-    const retobj = await res.json();
-    if(retobj.status === 200) {
-      let state_dealers = Array.from(retobj.dealers)
-      setDealersList(state_dealers)
-    }
-  }
-
-  const get_dealers = async ()=>{
-    const res = await fetch(dealer_url, {
-      method: "GET"
-    });
-    const retobj = await res.json();
-    if(retobj.status === 200) {
-      let all_dealers = Array.from(retobj.dealers)
-      let states = [];
-      all_dealers.forEach((dealer)=>{
-        states.push(dealer.state)
-      });
-
-      setStates(Array.from(new Set(states)))
-      setDealersList(all_dealers)
-    }
-  }
-  useEffect(() => {
-    get_dealers();
-  },[]);  
-
-
-let isLoggedIn = sessionStorage.getItem("username") != null ? true : false;
-return(
-  <div>
-      <Header/>
-
-     <table className='table'>
-      <tr>
-      <th>ID</th>
-      <th>Dealer Name</th>
-      <th>City</th>
-      <th>Address</th>
-      <th>Zip</th>
-      <th>
-      <select name="state" id="state" onChange={(e) => filterDealers(e.target.value)}>
-      <option value="" selected disabled hidden>State</option>
-      <option value="All">All States</option>
-      {states.map(state => (
-          <option value={state}>{state}</option>
-      ))}
-      </select>        
-
-      </th>
-      {isLoggedIn ? (
-          <th>Review Dealer</th>
-         ):<></>
-      }
-      </tr>
-     {dealersList.map(dealer => (
-        <tr>
-          <td>{dealer['id']}</td>
-          <td><a href={'/dealer/'+dealer['id']}>{dealer['full_name']}</a></td>
-          <td>{dealer['city']}</td>
-          <td>{dealer['address']}</td>
-          <td>{dealer['zip']}</td>
-          <td>{dealer['state']}</td>
-          {isLoggedIn ? (
-            <td><a href={`/postreview/${dealer['id']}`}><img src={review_icon} className="review_icon" alt="Post Review"/></a></td>
-           ):<></>
-          }
-        </tr>
-      ))}
-     </table>;
-  </div>
-)
+import {api} from '../../api';
+export default function Dealers(){
+ const [dealers,setDealers]=useState([]),[states,setStates]=useState([]),[user,setUser]=useState(''),[error,setError]=useState(''),[loading,setLoading]=useState(true);
+ const [state,setState]=useState(new URLSearchParams(window.location.search).get('state')||'All');
+ useEffect(()=>{let live=true;api('/djangoapp/session').then(x=>live&&setUser(x.userName)).catch(()=>{});api('/djangoapp/get_dealers').then(x=>{if(live)setStates([...new Set(x.dealers.map(d=>d.state))].sort());}).catch(e=>live&&setError(e.message));return()=>{live=false;};},[]);
+ useEffect(()=>{let live=true;setLoading(true);setError('');api('/djangoapp/get_dealers'+(state==='All'?'':'/'+encodeURIComponent(state))).then(x=>live&&setDealers(x.dealers)).catch(e=>live&&setError(e.message)).finally(()=>live&&setLoading(false));return()=>{live=false;};},[state]);
+ function filter(value){setState(value);window.history.replaceState(null,'','/?state='+encodeURIComponent(value));}
+ return <><Header/><main id='main'><section className='catalog-hero'><div><p className='eyebrow'>LOCAL KNOWLEDGE. BETTER DECISIONS.</p><h1>Good journeys<br/>start with trust.</h1><p>Explore dealerships, hear from other drivers,<br/>and find the right place for your next car.</p></div><div className='hero-note'><span className='road-line' aria-hidden='true'/><p>Real places.<br/>Shared experiences.<br/><strong>Your next chapter.</strong></p></div></section><section className='catalog'><div className='section-heading'><div><p className='eyebrow'>EXPLORE THE NETWORK</p><h2>Find a dealership</h2></div><label className='state-filter'>State<select value={state} onChange={e=>filter(e.target.value)}><option value='All'>All States</option>{states.map(s=><option key={s}>{s}</option>)}</select></label></div>{loading?<p role='status'>Loading dealerships…</p>:error?<p role='alert' className='error'>{error}</p>:<><p className='muted'>{dealers.length} dealerships{state!=='All'?' in '+state:''}</p><div className='table-wrap'><table><thead><tr><th>ID</th><th>Dealer name</th><th>City</th><th>Address</th><th>Zip</th><th>State</th>{user&&<th>Review Dealer</th>}</tr></thead><tbody>{dealers.map(d=><tr key={d.id}><td className='muted'>{String(d.id).padStart(2,'0')}</td><td><a className='dealer-link' href={'/dealer/'+d.id}>{d.full_name}</a></td><td>{d.city}</td><td>{d.address}</td><td>{d.zip}</td><td>{d.state}</td>{user&&<td><a className='review-link' href={'/postreview/'+d.id}>Review Dealer <span aria-hidden='true'>↗</span></a></td>}</tr>)}</tbody></table></div>{!dealers.length&&<p>No dealerships found for this state.</p>}</>}</section><footer>Cars Dealership · A course demonstration using the supplied dealership dataset.</footer></main></>;
 }
-
-export default Dealers
